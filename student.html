@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>Student Attendance</title>
 
 <style>
@@ -68,32 +69,7 @@ const GAS_URL =
 const LOCK_HOURS = 10;
 
 
-/* DEVICE LOCK CHECK */
-
-const lastSubmit = localStorage.getItem("attendanceTime");
-
-if(lastSubmit){
-
-const now = new Date().getTime();
-const diff = now - parseInt(lastSubmit);
-
-const hours = diff / (1000*60*60);
-
-if(hours < LOCK_HOURS){
-
-document.body.innerHTML = `
-<h2 style="text-align:center;color:red;margin-top:100px;">
-Attendance already submitted from this device.<br><br>
-Try again after ${Math.ceil(LOCK_HOURS - hours)} hours.
-</h2>
-`;
-
-}
-
-}
-
-
-/* AUTO FILL CODE FROM QR */
+/* Auto-fill QR code */
 
 const urlParams = new URLSearchParams(window.location.search);
 
@@ -118,6 +94,7 @@ const batch = document.getElementById("batch").value.trim();
 
 const msgDiv = document.getElementById("message");
 
+
 if(code=="" || name=="" || batch==""){
 
 msgDiv.innerText="Please fill all fields";
@@ -129,6 +106,34 @@ btn.disabled=false;
 return;
 
 }
+
+
+/* Prevent same student submission from same device */
+
+const studentKey = name + "_" + batch;
+
+const stored = localStorage.getItem(studentKey);
+
+if(stored){
+
+const now = new Date().getTime();
+const diff = now - parseInt(stored);
+const hours = diff/(1000*60*60);
+
+if(hours < LOCK_HOURS){
+
+msgDiv.style.color="red";
+msgDiv.innerText="This device already submitted attendance for this student.";
+
+btn.innerText="Submit";
+btn.disabled=false;
+
+return;
+
+}
+
+}
+
 
 try{
 
@@ -144,9 +149,10 @@ const res = await fetch(reqUrl,{method:'POST'});
 
 const resultText = await res.text();
 
+
 if(resultText === "Success"){
 
-localStorage.setItem("attendanceTime", new Date().getTime());
+localStorage.setItem(studentKey,new Date().getTime());
 
 msgDiv.style.color="green";
 
@@ -169,6 +175,7 @@ msgDiv.style.color="red";
 msgDiv.innerText="Network Error. Please try again.";
 
 }
+
 
 btn.innerText="Submit";
 btn.disabled=false;
