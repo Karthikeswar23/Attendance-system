@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Attendance</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 400px; margin: auto; }
+        input { width: 100%; padding: 15px; margin: 10px 0; font-size: 16px; box-sizing: border-box;}
+        button { width: 100%; padding: 15px; background: green; color: white; font-size: 18px; border: none; cursor: pointer;}
+        #message { text-align: center; font-weight: bold; margin-top: 20px; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+    <h2>Mark Attendance</h2>
+    
+    <label>Room Code:</label>
+    <input type="number" id="code" placeholder="Enter 4-digit code from screen" required>
+
+    <label>Full Name:</label>
+    <input type="text" id="name" placeholder="John Doe" required>
+
+    <label>Batch Number:</label>
+    <input type="text" id="batch" placeholder="A1" required>
+
+    <button onclick="submitForm()" id="submitBtn">Submit</button>
+
+    <p id="message"></p>
+
+    <script>
+        // REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwmZZmrssoqD9_X_4Nza1uCxCjq0422pqwUt72WT0ybyrndwyiXi1sJ6AFe-VUhhSSQ/exec";
+
+        // Auto-fill code if scanned via QR
+        const urlParams = new URLSearchParams(window.location.search);
+        if(urlParams.has('code')) {
+            document.getElementById('code').value = urlParams.get('code');
+            document.getElementById('code').readOnly = true; // Lock it
+        }
+
+        async function submitForm() {
+            document.getElementById("submitBtn").innerText = "Submitting...";
+            
+            const code = document.getElementById("code").value;
+            const name = document.getElementById("name").value;
+            const batch = document.getElementById("batch").value;
+
+            // Get Student's Wi-Fi IP
+            const response = await fetch("https://api.ipify.org?format=json");
+            const data = await response.json();
+            const studentIP = data.ip;
+
+            // Send to Google Sheets
+            const reqUrl = `${GAS_URL}?action=submit_attendance&code=${code}&name=${name}&batch=${batch}&ip=${studentIP}`;
+            
+            const res = await fetch(reqUrl, { method: 'POST' });
+            const resultText = await res.text();
+
+            const msgDiv = document.getElementById("message");
+            msgDiv.innerText = resultText;
+            
+            if(resultText === "Success") {
+                msgDiv.style.color = "green";
+                msgDiv.innerText = "Attendance Submitted! Date and Time recorded automatically.";
+            } else {
+                msgDiv.style.color = "red";
+            }
+            document.getElementById("submitBtn").innerText = "Submit";
+        }
+    </script>
+</body>
+</html>
