@@ -1,164 +1,106 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Student Attendance</title>
+function doPost(e) {
 
-    <style>
+  if (!e || !e.parameter) {
+    return ContentService.createTextOutput("Error: No data received");
+  }
 
-        body{
-            font-family: Arial;
-            padding:20px;
-            max-width:400px;
-            margin:auto;
-        }
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var action = e.parameter.action;
 
-        input{
-            width:100%;
-            padding:15px;
-            margin:10px 0;
-            font-size:16px;
-            box-sizing:border-box;
-        }
+  // TEACHER CREATES SESSION
+  if (action == "create_session") {
 
-        button{
-            width:100%;
-            padding:15px;
-            background:green;
-            color:white;
-            font-size:18px;
-            border:none;
-            cursor:pointer;
-        }
+    var ws = sheet.getSheetByName("Sessions");
 
-        #message{
-            text-align:center;
-            font-weight:bold;
-            margin-top:20px;
-            font-size:18px;
-        }
+    ws.appendRow([
+      e.parameter.code,
+      e.parameter.ip,
+      new Date()
+    ]);
 
-    </style>
-
-</head>
-
-<body>
-
-<h2>Mark Attendance</h2>
-
-<label>Room Code:</label>
-<input type="number" id="code" placeholder="Enter 4-digit code from screen" required>
-
-<label>Full Name:</label>
-<input type="text" id="name" placeholder="John Doe" required>
-
-<label>Batch Number:</label>
-<input type="text" id="batch" placeholder="A1" required>
-
-<button onclick="submitForm()" id="submitBtn">
-Submit
-</button>
-
-<p id="message"></p>
+    return ContentService.createTextOutput("Session Created");
+  }
 
 
-<script>
+  // STUDENT SUBMITS ATTENDANCE
+  if (action == "submit_attendance") {
 
-const GAS_URL =
-"https://script.google.com/macros/s/AKfycbwmZZmrssoqD9_X_4Nza1uCxCjq0422pqwUt72WT0ybyrndwyiXi1sJ6AFe-VUhhSSQ/exec";
+    var sessionSheet = sheet.getSheetByName("Sessions");
+    var sessionData = sessionSheet.getDataRange().getValues();
 
+    var teacherIP = "";
 
-// Auto-fill code if student scanned QR
-const urlParams = new URLSearchParams(window.location.search);
+    // Find session code
+    for (var i = sessionData.length - 1; i >= 0; i--) {
 
-if(urlParams.has('code')){
+      if (sessionData[i][0] == e.parameter.code) {
+        teacherIP = sessionData[i][1];
+        break;
+      }
 
-document.getElementById('code').value = urlParams.get('code');
-document.getElementById('code').readOnly = true;
+    }
 
-}
+    if (teacherIP == "") {
+      return ContentService.createTextOutput("Error: Invalid Room Code");
+    }
 
-
-async function submitForm(){
-
-const btn = document.getElementById("submitBtn");
-
-btn.innerText="Submitting...";
-btn.disabled=true;
-
-const code = document.getElementById("code").value;
-const name = document.getElementById("name").value.trim();
-const batch = document.getElementById("batch").value.trim();
-
-const msgDiv = document.getElementById("message");
+    // WiFi Check
+    if (teacherIP != e.parameter.ip) {
+      return ContentService.createTextOutput("Error: Connect to Classroom WiFi");
+    }
 
 
-/* Validation */
+    var attSheet = sheet.getSheetByName("Attendance");
+    var attendanceData = attSheet.getDataRange().getValues();
 
-if(code=="" || name=="" || batch==""){
+    var name = e.parameter.name;
+    var batch = e.parameter.batch;
 
-msgDiv.innerText="Please fill all fields";
-msgDiv.style.color="red";
+    var date = new Date();
 
-btn.innerText="Submit";
-btn.disabled=false;
+    var dateStr = Utilities.formatDate(
+      date,
+      Session.getScriptTimeZone(),
+      "yyyy-MM-dd"
+    );
 
-return;
-
-}
-
-
-try{
-
-/* Get student IP */
-
-const response = await fetch("https://api.ipify.org?format=json");
-const data = await response.json();
-
-const studentIP = data.ip;
+    var timeStr = Utilities.formatDate(
+      date,
+      Session.getScriptTimeZone(),
+      "HH:mm:ss"
+    );
 
 
-/* Send to Google Sheets */
+    // DUPLICATE CHECK
+    for (var j = 1; j < attendanceData.length; j++) {
 
-const reqUrl =
-`${GAS_URL}?action=submit_attendance&code=${code}&name=${encodeURIComponent(name)}&batch=${encodeURIComponent(batch)}&ip=${studentIP}`;
+      var existingDate = attendanceData[j][0];
+      var existingName = attendanceData[j][2];
+      var existingBatch = attendanceData[j][3];
+
+      if (
+        existingDate == dateStr &&
+        existingName == name &&
+        existingBatch == batch
+      ) {
+
+        return ContentService.createTextOutput("Error: Attendance already marked");
+
+      }
+
+    }
 
 
-const res = await fetch(reqUrl,{method:'POST'});
+    // SAVE ATTENDANCE
+    attSheet.appendRow([
+      dateStr,
+      timeStr,
+      name,
+      batch
+    ]);
 
-const resultText = await res.text();
+    return ContentService.createTextOutput("Success");
 
-
-if(resultText === "Success"){
-
-msgDiv.style.color="green";
-
-msgDiv.innerText =
-"Attendance Submitted! Date and Time recorded automatically.";
+  }
 
 }
-else{
-
-msgDiv.style.color="red";
-msgDiv.innerText=resultText;
-
-}
-
-}
-
-catch(error){
-
-msgDiv.style.color="red";
-msgDiv.innerText="Network Error. Please try again.";
-
-}
-
-
-btn.innerText="Submit";
-btn.disabled=false;
-
-}
-
-</script>
-
-</body>
-</html>
