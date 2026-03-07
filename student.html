@@ -1,58 +1,65 @@
 <!DOCTYPE html>
 <html>
-
 <head>
+    <title>Student Attendance</title>
 
-<title>Student Attendance</title>
+    <style>
 
-<style>
+        body{
+            font-family: Arial;
+            padding:20px;
+            max-width:400px;
+            margin:auto;
+        }
 
-body{
-font-family:Arial;
-text-align:center;
-margin-top:60px;
-}
+        input{
+            width:100%;
+            padding:15px;
+            margin:10px 0;
+            font-size:16px;
+            box-sizing:border-box;
+        }
 
-input{
-padding:12px;
-font-size:18px;
-margin:10px;
-width:260px;
-}
+        button{
+            width:100%;
+            padding:15px;
+            background:green;
+            color:white;
+            font-size:18px;
+            border:none;
+            cursor:pointer;
+        }
 
-button{
-padding:15px;
-font-size:20px;
-background:green;
-color:white;
-border:none;
-border-radius:10px;
-cursor:pointer;
-}
+        #message{
+            text-align:center;
+            font-weight:bold;
+            margin-top:20px;
+            font-size:18px;
+        }
 
-#msg{
-margin-top:20px;
-font-size:22px;
-}
-
-</style>
+    </style>
 
 </head>
 
 <body>
 
-<h1>Mark Attendance</h1>
+<h2>Mark Attendance</h2>
 
-<input id="name" placeholder="Enter Name"><br>
-<input id="batch" placeholder="Enter Batch"><br>
+<label>Room Code:</label>
+<input type="number" id="code" placeholder="Enter 4-digit code from screen" required>
 
-<input id="code" placeholder="Room Code"><br>
+<label>Full Name:</label>
+<input type="text" id="name" placeholder="John Doe" required>
 
-<button onclick="submitAttendance()">
-Submit Attendance
+<label>Batch Number:</label>
+<input type="text" id="batch" placeholder="A1" required>
+
+<button onclick="submitForm()" id="submitBtn">
+Submit
 </button>
 
-<h2 id="msg"></h2>
+<p id="message"></p>
+
 
 <script>
 
@@ -60,90 +67,79 @@ const GAS_URL =
 "https://script.google.com/macros/s/AKfycbwmZZmrssoqD9_X_4Nza1uCxCjq0422pqwUt72WT0ybyrndwyiXi1sJ6AFe-VUhhSSQ/exec";
 
 
-/* AUTO FILL ROOM CODE FROM QR LINK */
+// Auto-fill code if student scanned QR
+const urlParams = new URLSearchParams(window.location.search);
 
-window.onload = function(){
+if(urlParams.has('code')){
 
-const params = new URLSearchParams(window.location.search);
-const code = params.get("code");
-
-if(code){
-
-document.getElementById("code").value = code;
-
-}
+document.getElementById('code').value = urlParams.get('code');
+document.getElementById('code').readOnly = true;
 
 }
 
 
+async function submitForm(){
 
-/* SUBMIT ATTENDANCE */
+const btn = document.getElementById("submitBtn");
 
-async function submitAttendance(){
+btn.innerText="Submitting...";
+btn.disabled=true;
 
+const code = document.getElementById("code").value;
 const name = document.getElementById("name").value.trim();
 const batch = document.getElementById("batch").value.trim();
-const code = document.getElementById("code").value.trim();
 
-if(name=="" || batch=="" || code==""){
+const msgDiv = document.getElementById("message");
 
-alert("Please fill all fields");
+
+/* Validation */
+
+if(code=="" || name=="" || batch==""){
+
+msgDiv.innerText="Please fill all fields";
+msgDiv.style.color="red";
+
+btn.innerText="Submit";
+btn.disabled=false;
+
 return;
 
 }
 
-document.getElementById("msg").innerHTML="Submitting...";
 
 try{
 
-const ipResponse = await fetch("https://api.ipify.org?format=json");
-const ipData = await ipResponse.json();
+/* Get student IP */
 
-const studentIP = ipData.ip;
+const response = await fetch("https://api.ipify.org?format=json");
+const data = await response.json();
 
-const formData = new URLSearchParams();
-
-formData.append("action","submit_attendance");
-formData.append("name",name);
-formData.append("batch",batch);
-formData.append("code",code);
-formData.append("ip",studentIP);
-
-const res = await fetch(GAS_URL,{
-method:"POST",
-body:formData
-});
-
-const result = await res.json();
+const studentIP = data.ip;
 
 
-if(result.status=="success"){
+/* Send to Google Sheets */
 
-document.getElementById("msg").innerHTML="✅ Attendance Marked Successfully";
+const reqUrl =
+`${GAS_URL}?action=submit_attendance&code=${code}&name=${encodeURIComponent(name)}&batch=${encodeURIComponent(batch)}&ip=${studentIP}`;
 
-}
 
-else if(result.status=="duplicate"){
+const res = await fetch(reqUrl,{method:'POST'});
 
-document.getElementById("msg").innerHTML="⚠️ Attendance Already Marked";
+const resultText = await res.text();
+
+
+if(resultText === "Success"){
+
+msgDiv.style.color="green";
+
+msgDiv.innerText =
+"Attendance Submitted! Date and Time recorded automatically.";
 
 }
-
-else if(result.status=="wifi_error"){
-
-document.getElementById("msg").innerHTML="❌ Connect to Classroom WiFi";
-
-}
-
-else if(result.status=="invalid_code"){
-
-document.getElementById("msg").innerHTML="❌ Invalid Room Code";
-
-}
-
 else{
 
-document.getElementById("msg").innerHTML="❌ Error submitting";
+msgDiv.style.color="red";
+msgDiv.innerText=resultText;
 
 }
 
@@ -151,17 +147,18 @@ document.getElementById("msg").innerHTML="❌ Error submitting";
 
 catch(error){
 
-console.log(error);
-
-document.getElementById("msg").innerHTML="❌ Network Error";
+msgDiv.style.color="red";
+msgDiv.innerText="Network Error. Please try again.";
 
 }
+
+
+btn.innerText="Submit";
+btn.disabled=false;
 
 }
 
 </script>
 
 </body>
-
 </html>
-
