@@ -1,39 +1,39 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Teacher Dashboard</title>
+<title>Teacher Dashboard</title>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <style>
+<style>
 
-        body{
-            text-align:center;
-            font-family:Arial;
-            margin-top:50px;
-        }
+body{
+text-align:center;
+font-family:Arial;
+margin-top:50px;
+}
 
-        button{
-            padding:20px;
-            font-size:22px;
-            background:blue;
-            color:white;
-            border:none;
-            border-radius:10px;
-            cursor:pointer;
-        }
+button{
+padding:20px;
+font-size:22px;
+background:blue;
+color:white;
+border:none;
+border-radius:10px;
+cursor:pointer;
+}
 
-        .hidden{
-            display:none;
-        }
+.hidden{
+display:none;
+}
 
-        #qrcode{
-            display:flex;
-            justify-content:center;
-            margin:30px;
-        }
+#qrcode{
+display:flex;
+justify-content:center;
+margin:30px;
+}
 
-    </style>
+</style>
 </head>
 
 <body>
@@ -64,12 +64,10 @@ Enter Room Code:
 
 </div>
 
-
 <script>
 
 const GAS_URL =
 "https://script.google.com/macros/s/AKfycbwmZZmrssoqD9_X_4Nza1uCxCjq0422pqwUt72WT0ybyrndwyiXi1sJ6AFe-VUhhSSQ/exec";
-
 
 async function startAttendance(){
 
@@ -87,7 +85,6 @@ const teacherIP = data.ip;
 await fetch(`${GAS_URL}?action=create_session&code=${code}&ip=${teacherIP}`,{
 method:'POST'
 });
-
 
 document.getElementById("startBtn").classList.add("hidden");
 document.getElementById("dashboard").classList.remove("hidden");
