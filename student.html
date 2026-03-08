@@ -1,78 +1,133 @@
-<!-- Add this script tag in the <head> of student.html -->
-<script src="https://openfpcdn.io/fingerprintjs/v4"></script>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Attendance - Submit</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- FingerprintJS Library for Unique Device Identification -->
+    <script src="https://openfpcdn.io/fingerprintjs/v4"></script>
+    <style>
+        body { font-family: 'Segoe UI', Arial; padding: 20px; background-color: #f0f2f5; display: flex; justify-content: center; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; color: #1a73e8; }
+        label { display: block; margin-top: 15px; font-weight: bold; color: #555; }
+        input { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        input[readonly] { background-color: #eee; cursor: not-allowed; }
+        button { width: 100%; padding: 15px; background: #28a745; color: white; font-size: 18px; border: none; border-radius: 6px; cursor: pointer; margin-top: 20px; transition: 0.2s; }
+        button:hover { background: #218838; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #message { text-align: center; font-weight: bold; margin-top: 20px; font-size: 16px; min-height: 24px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div id="formContainer">
+        <h2>Mark Attendance</h2>
+
+        <label>Room Code:</label>
+        <input type="number" id="code" placeholder="Enter 4-digit code" required>
+
+        <label>Full Name:</label>
+        <input type="text" id="name" placeholder="Enter your full name" required>
+
+        <label>Batch Number:</label>
+        <input type="text" id="batch" placeholder="e.g. 89r" required>
+
+        <button onclick="submitForm()" id="submitBtn">Submit Attendance</button>
+    </div>
+    <p id="message"></p>
+</div>
 
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/YOUR_URL_HERE/exec";
+    // PASTE YOUR NEW GOOGLE DEPLOYMENT URL HERE
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwmZZmrssoqD9_X_4Nza1uCxCjq0422pqwUt72WT0ybyrndwyiXi1sJ6AFe-VUhhSSQ/exec";
+    
+    let deviceFingerprint = "";
     const todayStr = new Date().toDateString();
 
-    // 1. Initialize Fingerprint and check localStorage immediately
-    let deviceFingerprint = "";
+    // 1. Initialize Device Fingerprint and Check LocalStorage
+    async function init() {
+        try {
+            const fpPromise = FingerprintJS.load();
+            const fp = await fpPromise;
+            const result = await fp.get();
+            deviceFingerprint = result.visitorId; // Unique ID for this phone hardware
 
-    async function initDeviceCheck() {
-        const fpPromise = FingerprintJS.load();
-        const fp = await fpPromise;
-        const result = await fp.get();
-        deviceFingerprint = result.visitorId; // This is the unique Device ID
-
-        const lockedDate = localStorage.getItem("device_locked_date");
-        if (lockedDate === todayStr) {
-            showLockout("Attendance already recorded from this device (Local Lock).");
+            // Check if this specific browser already submitted today
+            if (localStorage.getItem("last_sub_date") === todayStr) {
+                showError("Attendance already recorded from this device today.");
+            }
+        } catch (e) {
+            console.error("Fingerprint failed", e);
         }
     }
-    initDeviceCheck();
 
-    function showLockout(msg) {
+    // 2. Auto-fill code from QR Link
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.has('code')){
+        document.getElementById('code').value = urlParams.get('code');
+        document.getElementById('code').readOnly = true;
+    }
+
+    function showError(msg) {
         document.getElementById("formContainer").classList.add("hidden");
         const msgDiv = document.getElementById("message");
-        msgDiv.style.color = "red";
+        msgDiv.style.color = "#d9534f";
         msgDiv.innerText = msg;
     }
 
     async function submitForm() {
         const btn = document.getElementById("submitBtn");
-        btn.innerText = "Validating Device...";
-        btn.disabled = true;
-
+        const msgDiv = document.getElementById("message");
+        
         const code = document.getElementById("code").value;
         const name = document.getElementById("name").value.trim();
         const batch = document.getElementById("batch").value.trim();
-        const msgDiv = document.getElementById("message");
 
         if(!code || !name || !batch) {
-            msgDiv.innerText = "Please fill all fields";
+            msgDiv.innerText = "Please fill all fields!";
             msgDiv.style.color = "red";
-            btn.innerText = "Submit";
-            btn.disabled = false;
             return;
         }
 
-        try {
-            const response = await fetch("https://api.ipify.org?format=json");
-            const data = await response.json();
-            const studentIP = data.ip;
+        btn.innerText = "Verifying Device...";
+        btn.disabled = true;
 
-            // Notice we added &deviceId= here
-            const reqUrl = `${GAS_URL}?action=submit_attendance&code=${code}&name=${encodeURIComponent(name)}&batch=${encodeURIComponent(batch)}&ip=${studentIP}&deviceId=${deviceFingerprint}`;
+        try {
+            // Get Student IP
+            const ipRes = await fetch("https://api.ipify.org?format=json");
+            const ipData = await ipRes.json();
+            const studentIP = ipData.ip;
+
+            // Send to Backend (Including deviceId)
+            const query = `?action=submit_attendance&code=${code}&name=${encodeURIComponent(name)}&batch=${encodeURIComponent(batch)}&ip=${studentIP}&deviceId=${deviceFingerprint}`;
             
-            const res = await fetch(reqUrl, { method: 'POST' });
+            const res = await fetch(GAS_URL + query, { method: 'POST' });
             const resultText = await res.text();
 
             if(resultText === "Success") {
-                localStorage.setItem("device_locked_date", todayStr);
+                localStorage.setItem("last_sub_date", todayStr);
                 document.getElementById("formContainer").classList.add("hidden");
-                msgDiv.style.color = "green";
-                msgDiv.innerText = "Attendance Submitted successfully!";
+                msgDiv.style.color = "#28a745";
+                msgDiv.innerText = "Attendance Recorded Successfully! ✅";
             } else {
-                msgDiv.style.color = "red";
+                msgDiv.style.color = "#d9534f";
                 msgDiv.innerText = resultText;
-                btn.innerText = "Submit";
+                btn.innerText = "Submit Attendance";
                 btn.disabled = false;
             }
-        } catch(error) {
+        } catch(err) {
             msgDiv.style.color = "red";
-            msgDiv.innerText = "Network Error.";
-            btn.innerText = "Submit";
+            msgDiv.innerText = "Network Error. Please try again.";
             btn.disabled = false;
+            btn.innerText = "Submit Attendance";
         }
     }
+
+    // Run init on load
+    init();
 </script>
+
+</body>
+</html>
