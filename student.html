@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Student Attendance - Submit</title>
+    <title>Student Attendance</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- FingerprintJS Library for Unique Device Identification -->
     <script src="https://openfpcdn.io/fingerprintjs/v4"></script>
     <style>
-        body { font-family: 'Segoe UI', Arial; padding: 20px; background-color: #f0f2f5; display: flex; justify-content: center; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { text-align: center; color: #1a73e8; }
-        label { display: block; margin-top: 15px; font-weight: bold; color: #555; }
-        input { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-        input[readonly] { background-color: #eee; cursor: not-allowed; }
-        button { width: 100%; padding: 15px; background: #28a745; color: white; font-size: 18px; border: none; border-radius: 6px; cursor: pointer; margin-top: 20px; transition: 0.2s; }
-        button:hover { background: #218838; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        #message { text-align: center; font-weight: bold; margin-top: 20px; font-size: 16px; min-height: 24px; }
+        body { font-family: 'Segoe UI', Arial; padding: 20px; background: #e9ecef; display: flex; justify-content: center; }
+        .card { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #28a745; }
+        label { font-weight: bold; display: block; margin-top: 15px; }
+        input { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        input[readonly] { background-color: #f1f1f1; color: #555; }
+        button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; margin-top: 20px; }
+        button:disabled { background: #ccc; }
+        #message { text-align: center; margin-top: 20px; font-weight: bold; font-size: 16px; }
         .hidden { display: none; }
     </style>
 </head>
@@ -24,75 +22,64 @@
 <div class="card">
     <div id="formContainer">
         <h2>Mark Attendance</h2>
-
+        
         <label>Room Code:</label>
-        <input type="number" id="code" placeholder="Enter 4-digit code" required>
+        <input type="number" id="code" placeholder="4-digit code" required>
 
         <label>Full Name:</label>
-        <input type="text" id="name" placeholder="Enter your full name" required>
+        <input type="text" id="name" placeholder="As per records" required>
 
-        <label>Batch Number:</label>
+        <label>Batch:</label>
         <input type="text" id="batch" placeholder="e.g. 89r" required>
 
-        <button onclick="submitForm()" id="submitBtn">Submit Attendance</button>
+        <button id="subBtn" onclick="submitForm()">Submit Attendance</button>
     </div>
     <p id="message"></p>
 </div>
 
 <script>
-    // PASTE YOUR NEW GOOGLE DEPLOYMENT URL HERE
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwmZZmrssoqD9_X_4Nza1uCxCjq0422pqwUt72WT0ybyrndwyiXi1sJ6AFe-VUhhSSQ/exec";
-    
-    let deviceFingerprint = "";
-    const todayStr = new Date().toDateString();
+    let deviceID = "";
+    const todayStr = new Date().toDateString(); // e.g. "Mon Oct 23 2023"
 
-    // 1. Initialize Device Fingerprint and Check LocalStorage
+    // 1. Generate Unique Device ID & Check Local Lock
     async function init() {
-        try {
-            const fpPromise = FingerprintJS.load();
-            const fp = await fpPromise;
-            const result = await fp.get();
-            deviceFingerprint = result.visitorId; // Unique ID for this phone hardware
+        const fp = await FingerprintJS.load().then(f => f.get());
+        deviceID = fp.visitorId;
 
-            // Check if this specific browser already submitted today
-            if (localStorage.getItem("last_sub_date") === todayStr) {
-                showError("Attendance already recorded from this device today.");
-            }
-        } catch (e) {
-            console.error("Fingerprint failed", e);
+        // If user already submitted TODAY on this browser, block UI
+        if (localStorage.getItem("last_success_date") === todayStr) {
+            document.getElementById("formContainer").classList.add("hidden");
+            const msg = document.getElementById("message");
+            msg.style.color = "red";
+            msg.innerText = "You have already marked attendance for today! See you tomorrow.";
         }
     }
 
-    // 2. Auto-fill code from QR Link
-    const urlParams = new URLSearchParams(window.location.search);
-    if(urlParams.has('code')){
-        document.getElementById('code').value = urlParams.get('code');
+    // 2. Auto-fill from QR Code
+    const params = new URLSearchParams(window.location.search);
+    if(params.has('code')) {
+        document.getElementById('code').value = params.get('code');
         document.getElementById('code').readOnly = true;
     }
 
-    function showError(msg) {
-        document.getElementById("formContainer").classList.add("hidden");
-        const msgDiv = document.getElementById("message");
-        msgDiv.style.color = "#d9534f";
-        msgDiv.innerText = msg;
-    }
-
+    // 3. Submit Attendance
     async function submitForm() {
-        const btn = document.getElementById("submitBtn");
-        const msgDiv = document.getElementById("message");
+        const msg = document.getElementById("message");
+        const btn = document.getElementById("subBtn");
         
         const code = document.getElementById("code").value;
         const name = document.getElementById("name").value.trim();
         const batch = document.getElementById("batch").value.trim();
 
         if(!code || !name || !batch) {
-            msgDiv.innerText = "Please fill all fields!";
-            msgDiv.style.color = "red";
+            msg.innerText = "Please fill all fields.";
+            msg.style.color = "red";
             return;
         }
 
-        btn.innerText = "Verifying Device...";
         btn.disabled = true;
+        btn.innerText = "Verifying...";
 
         try {
             // Get Student IP
@@ -100,34 +87,31 @@
             const ipData = await ipRes.json();
             const studentIP = ipData.ip;
 
-            // Send to Backend (Including deviceId)
-            const query = `?action=submit_attendance&code=${code}&name=${encodeURIComponent(name)}&batch=${encodeURIComponent(batch)}&ip=${studentIP}&deviceId=${deviceFingerprint}`;
+            // Submit to Google Sheets
+            const url = `${GAS_URL}?action=submit_attendance&code=${code}&name=${encodeURIComponent(name)}&batch=${encodeURIComponent(batch)}&ip=${studentIP}&deviceId=${deviceID}`;
             
-            const res = await fetch(GAS_URL + query, { method: 'POST' });
+            const res = await fetch(url, { method: 'POST' });
             const resultText = await res.text();
 
             if(resultText === "Success") {
-                localStorage.setItem("last_sub_date", todayStr);
+                // Lock the device locally for today
+                localStorage.setItem("last_success_date", todayStr);
                 document.getElementById("formContainer").classList.add("hidden");
-                msgDiv.style.color = "#28a745";
-                msgDiv.innerText = "Attendance Recorded Successfully! ✅";
+                msg.style.color = "green";
+                msg.innerText = "Success! Your attendance is recorded.";
             } else {
-                msgDiv.style.color = "#d9534f";
-                msgDiv.innerText = resultText;
-                btn.innerText = "Submit Attendance";
+                msg.style.color = "red";
+                msg.innerText = resultText;
                 btn.disabled = false;
+                btn.innerText = "Submit Attendance";
             }
-        } catch(err) {
-            msgDiv.style.color = "red";
-            msgDiv.innerText = "Network Error. Please try again.";
+        } catch(e) {
+            msg.innerText = "Network error. Try again.";
             btn.disabled = false;
-            btn.innerText = "Submit Attendance";
         }
     }
 
-    // Run init on load
     init();
 </script>
-
 </body>
 </html>
