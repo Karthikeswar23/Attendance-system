@@ -1,43 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Teacher Dashboard - Attendance System</title>
+    <title>Teacher Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { text-align: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin-top: 50px; background-color: #f4f4f9; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        button { padding: 20px 40px; font-size: 22px; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: 0.3s; }
+        body { text-align: center; font-family: 'Segoe UI', Arial; margin-top: 50px; background: #f8f9fa; }
+        .container { background: white; display: inline-block; padding: 40px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        button { padding: 20px 40px; font-size: 22px; background: #007bff; color: white; border: none; border-radius: 10px; cursor: pointer; transition: 0.2s; }
         button:hover { background: #0056b3; }
         .hidden { display: none; }
-        #qrcode { display: flex; justify-content: center; margin: 30px; padding: 10px; background: white; }
-        h1 { color: #333; }
-        .code-display { color: #d9534f; font-size: 50px; font-weight: bold; letter-spacing: 5px; margin: 10px 0; }
+        #qrcode { margin: 30px auto; display: flex; justify-content: center; border: 10px solid white; }
+        #displayCode { color: #dc3545; font-size: 60px; font-weight: bold; margin: 10px 0; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <button id="startBtn" onclick="startAttendance()">Take Attendance</button>
+    <div class="container">
+        <button id="startBtn" onclick="startAttendance()">Take Attendance</button>
 
-    <div id="dashboard" class="hidden">
-        <h1>Scan to Mark Attendance</h1>
-        <div id="qrcode"></div>
-        <p>Or enter manually:</p>
-        <div id="displayCode" class="code-display"></div>
-        <p style="color: #666;">Note: Students must be on the same Wi-Fi network.</p>
+        <div id="dashboard" class="hidden">
+            <h1>Scan to Mark Attendance</h1>
+            <div id="qrcode"></div>
+            <h3>Room Code:</h3>
+            <div id="displayCode"></div>
+            <p style="color: #666;">Students must be on your Wi-Fi network.</p>
+        </div>
     </div>
-</div>
 
 <script>
-    // PASTE YOUR NEW GOOGLE DEPLOYMENT URL HERE
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwmZZmrssoqD9_X_4Nza1uCxCjq0422pqwUt72WT0ybyrndwyiXi1sJ6AFe-VUhhSSQ/exec";
 
     async function startAttendance(){
         const btn = document.getElementById("startBtn");
-        btn.innerHTML = "Generating Session...";
+        btn.innerText = "Generating Session...";
         btn.disabled = true;
 
-        const code = Math.floor(1000 + Math.random() * 9000);
+        const code = Math.floor(1000 + Math.random()*9000);
 
         try {
             // Get Teacher's Public IP
@@ -45,34 +43,27 @@
             const data = await response.json();
             const teacherIP = data.ip;
 
-            // Create Session in Google Sheets
-            const apiResp = await fetch(`${GAS_URL}?action=create_session&code=${code}&ip=${teacherIP}`, { method: 'POST' });
-            
-            if (apiResp.ok) {
-                document.getElementById("startBtn").classList.add("hidden");
-                document.getElementById("dashboard").classList.remove("hidden");
-                document.getElementById("displayCode").innerText = code;
+            // Notify Google Sheets
+            await fetch(`${GAS_URL}?action=create_session&code=${code}&ip=${teacherIP}`, { method: 'POST' });
 
-                // Create the link for students
-                // Replace the URL below with your actual hosted student.html link
-                const studentLink = `https://karthikeswar23.github.io/Attendance-system/student.html?code=${code}`;
-                
-                document.getElementById("qrcode").innerHTML = "";
-                new QRCode(document.getElementById("qrcode"), {
-                    text: studentLink,
-                    width: 250,
-                    height: 250
-                });
-            } else {
-                throw new Error("Failed to connect to Google Sheets");
-            }
+            document.getElementById("startBtn").classList.add("hidden");
+            document.getElementById("dashboard").classList.remove("hidden");
+            document.getElementById("displayCode").innerText = code;
+
+            // Generate Student Link
+            const studentLink = `https://karthikeswar23.github.io/Attendance-system/student.html?code=${code}`;
+            
+            new QRCode(document.getElementById("qrcode"), {
+                text: studentLink,
+                width: 250,
+                height: 250
+            });
         } catch(err) {
-            alert("Error: " + err.message);
-            btn.innerHTML = "Take Attendance";
+            alert("Connection Error. Please check internet.");
+            btn.innerText = "Take Attendance";
             btn.disabled = false;
         }
     }
 </script>
-
 </body>
 </html>
