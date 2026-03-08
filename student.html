@@ -1,62 +1,36 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Student Attendance</title>
-    <style>
-        body { font-family: Arial; padding: 20px; max-width: 400px; margin: auto; }
-        input { width: 100%; padding: 15px; margin: 10px 0; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: green; color: white; font-size: 18px; border: none; cursor: pointer; }
-        #message { text-align: center; font-weight: bold; margin-top: 20px; font-size: 18px; }
-        .hidden { display: none; }
-    </style>
-</head>
-<body>
-
-    <div id="formContainer">
-        <h2>Mark Attendance</h2>
-
-        <label>Room Code:</label>
-        <input type="number" id="code" placeholder="Enter 4-digit code from screen" required>
-
-        <label>Full Name:</label>
-        <input type="text" id="name" placeholder="John Doe" required>
-
-        <label>Batch Number:</label>
-        <input type="text" id="batch" placeholder="A1" required>
-
-        <button onclick="submitForm()" id="submitBtn">Submit</button>
-    </div>
-
-    <p id="message"></p>
+<!-- Add this script tag in the <head> of student.html -->
+<script src="https://openfpcdn.io/fingerprintjs/v4"></script>
 
 <script>
-    // YOUR GOOGLE APPS SCRIPT URL
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwmZZmrssoqD9_X_4Nza1uCxCjq0422pqwUt72WT0ybyrndwyiXi1sJ6AFe-VUhhSSQ/exec";
+    const GAS_URL = "https://script.google.com/macros/s/YOUR_URL_HERE/exec";
+    const todayStr = new Date().toDateString();
 
-    // --- DEVICE LOCK LOGIC ---
-    // Check if this device already submitted today
-    const todayStr = new Date().toDateString(); // Example: "Mon Oct 23 2023"
-    const lockedDate = localStorage.getItem("device_locked_date");
+    // 1. Initialize Fingerprint and check localStorage immediately
+    let deviceFingerprint = "";
 
-    if (lockedDate === todayStr) {
-        // Hide the form completely!
+    async function initDeviceCheck() {
+        const fpPromise = FingerprintJS.load();
+        const fp = await fpPromise;
+        const result = await fp.get();
+        deviceFingerprint = result.visitorId; // This is the unique Device ID
+
+        const lockedDate = localStorage.getItem("device_locked_date");
+        if (lockedDate === todayStr) {
+            showLockout("Attendance already recorded from this device (Local Lock).");
+        }
+    }
+    initDeviceCheck();
+
+    function showLockout(msg) {
         document.getElementById("formContainer").classList.add("hidden");
         const msgDiv = document.getElementById("message");
         msgDiv.style.color = "red";
-        msgDiv.innerText = "Attendance has already been recorded from this device today. You cannot submit again.";
+        msgDiv.innerText = msg;
     }
 
-    // --- AUTO-FILL QR CODE ---
-    const urlParams = new URLSearchParams(window.location.search);
-    if(urlParams.has('code')){
-        document.getElementById('code').value = urlParams.get('code');
-        document.getElementById('code').readOnly = true;
-    }
-
-    // --- SUBMISSION LOGIC ---
     async function submitForm() {
         const btn = document.getElementById("submitBtn");
-        btn.innerText = "Submitting...";
+        btn.innerText = "Validating Device...";
         btn.disabled = true;
 
         const code = document.getElementById("code").value;
@@ -64,7 +38,7 @@
         const batch = document.getElementById("batch").value.trim();
         const msgDiv = document.getElementById("message");
 
-        if(code == "" || name == "" || batch == "") {
+        if(!code || !name || !batch) {
             msgDiv.innerText = "Please fill all fields";
             msgDiv.style.color = "red";
             btn.innerText = "Submit";
@@ -73,25 +47,21 @@
         }
 
         try {
-            // Get student IP
             const response = await fetch("https://api.ipify.org?format=json");
             const data = await response.json();
             const studentIP = data.ip;
 
-            // Send to Google Sheets
-            const reqUrl = `${GAS_URL}?action=submit_attendance&code=${code}&name=${encodeURIComponent(name)}&batch=${encodeURIComponent(batch)}&ip=${studentIP}`;
+            // Notice we added &deviceId= here
+            const reqUrl = `${GAS_URL}?action=submit_attendance&code=${code}&name=${encodeURIComponent(name)}&batch=${encodeURIComponent(batch)}&ip=${studentIP}&deviceId=${deviceFingerprint}`;
+            
             const res = await fetch(reqUrl, { method: 'POST' });
             const resultText = await res.text();
 
             if(resultText === "Success") {
-                // LOCK THE DEVICE FOR TODAY!
                 localStorage.setItem("device_locked_date", todayStr);
-
-                // Hide the form so they can't type another name
                 document.getElementById("formContainer").classList.add("hidden");
-
                 msgDiv.style.color = "green";
-                msgDiv.innerText = "Attendance Submitted! Date and Time recorded automatically.";
+                msgDiv.innerText = "Attendance Submitted successfully!";
             } else {
                 msgDiv.style.color = "red";
                 msgDiv.innerText = resultText;
@@ -100,12 +70,9 @@
             }
         } catch(error) {
             msgDiv.style.color = "red";
-            msgDiv.innerText = "Network Error. Please try again.";
+            msgDiv.innerText = "Network Error.";
             btn.innerText = "Submit";
             btn.disabled = false;
         }
     }
 </script>
-
-</body>
-</html>
