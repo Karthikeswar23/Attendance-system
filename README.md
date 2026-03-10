@@ -1,62 +1,78 @@
-# Attendance-system (Anti-Proxy)
+# 📡 Smart Wi-Fi Anti-Proxy Attendance System
 
-A secure, web-based attendance system designed to prevent "proxy" attendance. This system uses multi-layered verification to ensure students are physically present in the classroom and are not marking attendance for others.
+A highly secure, serverless classroom attendance system hosted on GitHub Pages and powered by Google Sheets. This system ensures that **only students physically present in the classroom** can mark their attendance, and strictly prevents proxy (fake) attendance using a multi-layered security approach.
 
-## 🚀 Key Features
+## ✨ Features & Security Layers
 
-*   **WiFi Verification (IP Lock):** Automatically compares the Teacher's public IP with the Student's public IP. Attendance is blocked if the student is not on the same network.
-*   **Device Fingerprinting:** Uses `FingerprintJS` to generate a unique digital ID for every phone hardware. Prevents a student from marking multiple people using one phone (even in Incognito mode).
-*   **QR Code Automation:** Generates a dynamic QR code that auto-fills and locks the Room Code for the student.
-*   **Daily Reset Logic:** Automatically allows students and devices to submit again the next day, while blocking duplicates within the same 24-hour window.
-*   **Zero-Cost Hosting:** Uses Google Sheets as the database and Google Apps Script as the backend.
+This system defeats proxy attendance using 4 invisible layers of security:
 
-## 🛠️ Security Layers
+1. **Same Wi-Fi Enforcement (IP Matching):** 
+   The system fetches the Public IP of the teacher's network and compares it with the student's network. If a student tries to submit attendance from their home Wi-Fi or using Mobile Data, the system instantly blocks them.
+2. **Device Fingerprinting (Hardware Lock):** 
+   When a student submits attendance, the system generates an invisible "Device ID" based on their physical phone screen size and browser data. If a student tries to switch Google accounts or use Incognito Mode to submit a friend's name, the database catches the duplicate Device ID and blocks it. One physical phone = One submission per day.
+3. **Active Session Lock:** 
+   The backend strictly verifies the Room Code against the *most recently generated* teacher session. Old codes, yesterday's codes, or random guesses are automatically rejected.
+4. **Local UI Lock:** 
+   Once a student successfully submits their attendance, their browser is locked for the rest of the day. The form becomes invisible, preventing them from easily handing their phone to the person sitting next to them. This lock automatically resets at Midnight.
 
-| Security Layer | Technology | Prevents |
-| :--- | :--- | :--- |
-| **Location Lock** | IP Matching (Ipify API) | Students marking attendance from home/outside. |
-| **Hardware Lock** | Browser Fingerprinting | Students marking for friends using Incognito/Private tabs. |
-| **Browser Lock** | LocalStorage | Accidental double-submissions. |
-| **Identity Lock** | Server-side Validation | Using the same name twice in one day. |
+---
 
-## 📋 Setup Instructions
+## 🛠️ Tech Stack
+* **Frontend:** HTML5, CSS3, Vanilla JavaScript (Hosted on GitHub Pages)
+* **Backend:** Google Apps Script
+* **Database:** Google Sheets
+* **APIs Used:** `ipify` (for fetching Public IP networks), `qrcode.js` (for QR generation)
+* **Zero-Cost:** No servers to maintain or pay for.
 
-### 1. Google Sheets Configuration
-1. Create a new Google Sheet named `Attendance_Database`.
-2. Create two tabs (worksheets) at the bottom:
-   *   **Sessions:** Add headers `Room Code`, `Teacher IP`, `Time Created` in the first row.
-   *   **Attendance:** Add headers `Date`, `Time`, `Name`, `Batch`, `DeviceID` in the first row.
+---
 
-### 2. Google Apps Script (Backend)
-1. In your sheet, go to **Extensions > Apps Script**.
-2. Copy the code from `Code.gs` and paste it there.
-3. Click the **Gear icon (Settings)** and check "Show 'appsscript.json' manifest file".
-4. In `appsscript.json`, set your local timezone (e.g., `Asia/Kolkata`).
-5. Click **Deploy > New Deployment**.
-   *   **Select Type:** Web App
-   *   **Execute As:** Me
-   *   **Who has access:** Anyone
-6. **Copy the Web App URL** provided.
+## 🚀 How It Works
 
-### 3. Frontend Configuration
-1. Open `index.html` (Teacher Dashboard) and `student.html` (Student Page).
-2. Locate the variable `const GAS_URL` in both files.
-3. Paste your **Web App URL** inside the quotes.
-4. Host both HTML files on **GitHub Pages**.
+### For the Teacher (Host):
+1. The teacher connects to the classroom Wi-Fi and opens the Teacher Dashboard.
+2. They click **Take Attendance**.
+3. The system fetches the classroom router's IP, generates a random 4-digit Room Code, and saves a new active "Session" in Google Sheets.
+4. A QR Code and the 4-digit Room Code are displayed on the projector.
 
-## 🖥️ How to Use
+### For the Student:
+1. Students connect to the **exact same classroom Wi-Fi**.
+2. **Mobile users** scan the QR code (which auto-fills the Room Code). **Laptop users** visit the student link and type the code.
+3. The student enters their Full Name and Batch Number and clicks Submit.
+4. The system verifies their IP address and Device ID. If approved, it saves their attendance with an automatic, tamper-proof Date and Time stamp.
 
-1.  **Teacher:** Open `index.html` on a laptop connected to the classroom Wi-Fi. Click **Take Attendance**. A QR code and Room Code will appear.
-2.  **Student:** Scan the QR code using a phone connected to the **same Wi-Fi**.
-3.  **Student:** Enter Name and Batch, then click **Submit**.
-4.  **Teacher:** View the live entries appearing instantly in your Google Sheet.
+---
 
-## 📂 Project Structure
+## ⚙️ Setup Instructions (For Developers)
 
-*   `index.html`: The Teacher Dashboard (QR generation & Session creation).
-*   `student.html`: The Student Interface (Fingerprinting & Submission).
-*   `Code.gs`: The Google Apps Script logic (Validation & Sheet logging).
-*   `README.md`: Project documentation.
+If you want to clone this project and set it up for your own classroom, follow these steps:
 
-## 📜 License
-This project is open-source and intended for educational purposes.
+### Step 1: Set up the Google Sheet (Database)
+1. Create a new Google Sheet.
+2. Create two tabs (worksheets) at the bottom: 
+   * Name the first tab **Sessions**
+   * Name the second tab **Attendance**
+
+### Step 2: Set up Google Apps Script (Backend)
+1. In your Google Sheet, click `Extensions` > `Apps Script`.
+2. Delete any existing code and paste the `Code.gs` script.
+3. Click the **Save** icon.
+4. Click **Deploy** > **New Deployment**.
+5. Choose **Web app**. 
+   * Execute as: **Me**
+   * Who has access: **Anyone**
+6. Click **Deploy**, authorize permissions, and **copy the Web App URL**.
+
+### Step 3: Configure the Frontend
+1. Clone this repository.
+2. Open `index.html` and `student.html`.
+3. Locate the `GAS_URL` constant in both files and replace the placeholder with your copied Google Apps Script Web App URL.
+4. In `index.html`, locate the `studentLink` variable and change the URL to match your GitHub Pages hosted repository link.
+
+### Step 4: Host on GitHub Pages
+1. Push your files to a public GitHub repository.
+2. Go to your repository **Settings** > **Pages**.
+3. Under "Build and deployment", set the Branch to `main` (or `master`) and click Save.
+4. Your anti-proxy attendance system is now live!
+
+---
+*Developed for smart, secure, and hassle-free classroom management.*
