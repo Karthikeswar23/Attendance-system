@@ -3,7 +3,6 @@
 <head>
     <title>Student Attendance</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://openfpcdn.io/fingerprintjs/v4"></script>
     <style>
         body { font-family: 'Segoe UI', Arial; padding: 20px; background: #e9ecef; display: flex; justify-content: center; }
         .card { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -39,15 +38,10 @@
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwmZZmrssoqD9_X_4Nza1uCxCjq0422pqwUt72WT0ybyrndwyiXi1sJ6AFe-VUhhSSQ/exec";
-    let deviceID = "";
-    const todayStr = new Date().toDateString(); // e.g. "Mon Oct 23 2023"
+    const todayStr = new Date().toDateString();
 
-    // 1. Generate Unique Device ID & Check Local Lock
-    async function init() {
-        const fp = await FingerprintJS.load().then(f => f.get());
-        deviceID = fp.visitorId;
-
-        // If user already submitted TODAY on this browser, block UI
+    // 1. Create a simple invisible Device ID & Check Local Browser Memory
+    function init() {
         if (localStorage.getItem("last_success_date") === todayStr) {
             document.getElementById("formContainer").classList.add("hidden");
             const msg = document.getElementById("message");
@@ -87,6 +81,10 @@
             const ipData = await ipRes.json();
             const studentIP = ipData.ip;
 
+            // Generate invisible simple Device ID (Combines Screen Size + Browser Info)
+            const rawID = navigator.userAgent + screen.width + screen.height;
+            const deviceID = btoa(rawID).substring(0, 20); // Converts it to a short random-looking string
+
             // Submit to Google Sheets
             const url = `${GAS_URL}?action=submit_attendance&code=${code}&name=${encodeURIComponent(name)}&batch=${encodeURIComponent(batch)}&ip=${studentIP}&deviceId=${deviceID}`;
             
@@ -94,7 +92,7 @@
             const resultText = await res.text();
 
             if(resultText === "Success") {
-                // Lock the device locally for today
+                // Lock the browser for today so they can't submit for a friend
                 localStorage.setItem("last_success_date", todayStr);
                 document.getElementById("formContainer").classList.add("hidden");
                 msg.style.color = "green";
