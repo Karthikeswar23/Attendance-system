@@ -1,4 +1,4 @@
-# 📡 Smart Wi-Fi Anti-Proxy Attendance System
+# 📡 Smart Anti-Proxy Attendance System
 
 A highly secure, serverless classroom attendance system hosted on GitHub Pages and powered by Google Sheets. This system ensures that **only students physically present in the classroom** can mark their attendance, and strictly prevents proxy (fake) attendance using a multi-layered security approach.
 
